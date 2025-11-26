@@ -15,11 +15,13 @@ import "core:math/linalg"
 import "vendor:sdl2"
 
 Game :: struct {
-	renderer: ^sdl2.Renderer,
-	keyboard: []u8,
-	time:     f64,
-	dt:       f64,
-	entities: [dynamic]Entity,
+	renderer:    ^sdl2.Renderer,
+	keyboard:    []u8,
+	time:        f64,
+	dt:          f64,
+	player:      Player,
+	enemies:     [dynamic]Enemy,
+	projectiles: [dynamic]Projectile,
 }
 
 get_time :: proc() -> f64 {
@@ -50,17 +52,15 @@ main :: proc() {
 	ticktime := 1000.0 / tickrate
 
 	game := Game {
-		renderer = renderer,
-		time     = get_time(),
-		dt       = ticktime,
-		entities = make([dynamic]Entity),
+		renderer    = renderer,
+		time        = get_time(),
+		dt          = ticktime,
+		player      = make_player(),
+		enemies     = make_enemies(),
+		projectiles = make([dynamic]Projectile),
 	}
-	defer delete(game.entities)
-
-	append(&game.entities, Entity{type = .PLAYER, pos = {50.0, 400.0}, hp = 10})
-	append(&game.entities, Entity{type = .ENEMY, pos = {50.0, 50.0}, hp = 1})
-	append(&game.entities, Entity{type = .ENEMY, pos = {100.0, 100.0}, hp = 1})
-	append(&game.entities, Entity{type = .ENEMY, pos = {200.0, 200.0}, hp = 1})
+	defer delete(game.enemies)
+	defer delete(game.projectiles)
 
 	dt := 0.0
 
@@ -87,13 +87,26 @@ main :: proc() {
 		for dt >= ticktime {
 			dt -= ticktime
 
-			for _, i in game.entities {
-				update_entity(&game.entities[i], &game)
+
+			update_player(&game.player, &game, f32(dt))
+			for _, i in game.enemies {
+				update_enemy(&game.enemies[i], &game, f32(dt))
 			}
 
-			for i := 0; i < len(game.entities); {
-				if game.entities[i].hp <= 0 {
-					ordered_remove(&game.entities, i)
+			for _, i in game.projectiles {
+				update_projectile(&game.projectiles[i], &game, f32(dt))
+			}
+
+			for i := 0; i < len(game.enemies); {
+				if game.enemies[i].hp <= 0 {
+					ordered_remove(&game.enemies, i)
+				} else {
+					i += 1
+				}
+			}
+			for i := 0; i < len(game.projectiles); {
+				if game.projectiles[i].hp <= 0 {
+					ordered_remove(&game.projectiles, i)
 				} else {
 					i += 1
 				}
@@ -102,8 +115,12 @@ main :: proc() {
 
 		sdl2.SetRenderDrawColor(renderer, 0, 0, 0, 0)
 		sdl2.RenderClear(renderer)
-		for _, i in game.entities {
-			render_entity(&game.entities[i], &game)
+		render_player(&game.player, &game)
+		for _, i in game.enemies {
+			render_enemy(&game.enemies[i], &game)
+		}
+		for _, i in game.projectiles {
+			render_projectile(&game.projectiles[i], &game)
 		}
 		sdl2.RenderPresent(renderer)
 	}
