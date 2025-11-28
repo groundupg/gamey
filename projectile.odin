@@ -1,5 +1,8 @@
 package chase_in_space
 
+import "core:fmt"
+import "core:math/linalg"
+import "vendor:sdl2"
 
 Projectile :: struct {
 	hp:             int,
